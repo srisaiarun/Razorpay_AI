@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: razorrecover-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: razorrecover
+      POSTGRES_USER: razorrecover
+      POSTGRES_PASSWORD: razorrecover_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - razorrecover_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  razorrecover_postgres_data:
