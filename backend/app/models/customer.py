@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
 
@@ -60,4 +60,8 @@ class Customer(Base):
         DateTime,
         nullable=False,
         default=datetime.utcnow,
+    )
+    transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="customer",
+        cascade="all, delete-orphan",
     )

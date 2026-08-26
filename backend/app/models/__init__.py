@@ -1,3 +1,7 @@
 from backend.app.models.customer import Customer
+from backend.app.models.transaction import Transaction
 
-__all__ = ["Customer"]
+__all__ = [
+    "Customer",
+    "Transaction",
+]
