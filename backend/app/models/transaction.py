@@ -84,3 +84,8 @@ class Transaction(Base):
     customer: Mapped["Customer"] = relationship(
         back_populates="transactions",
     )
+    recovery_case: Mapped["RecoveryCase | None"] = relationship(
+        back_populates="transaction",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
