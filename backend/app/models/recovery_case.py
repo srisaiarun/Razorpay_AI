@@ -94,3 +94,7 @@ class RecoveryCase(Base):
         back_populates="recovery_case",
         cascade="all, delete-orphan",
     )
+    audit_logs: Mapped[list["AuditLog"]] = relationship(
+        back_populates="recovery_case",
+        cascade="all, delete-orphan",
+    )
