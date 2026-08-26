@@ -90,3 +90,7 @@ class RecoveryCase(Base):
         back_populates="recovery_case",
         cascade="all, delete-orphan",
     )
+    recovery_actions: Mapped[list["RecoveryAction"]] = relationship(
+        back_populates="recovery_case",
+        cascade="all, delete-orphan",
+    )
