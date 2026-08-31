@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,9 @@ from backend.app.services.decision.decision_persistence import (
 )
 from backend.app.services.recovery.action_executor import (
     recovery_action_to_dict,
+)
+from backend.app.services.decision.decision_engine import (
+    DecisionEngine,
 )
 
 
@@ -97,6 +100,152 @@ class AuditLogResponse(BaseModel):
     message: str
     event_data: dict | None
     created_at: datetime
+
+class RecoveryQueueItemResponse(BaseModel):
+    recovery_case_id: int
+    customer_id: int
+    amount_at_risk: float
+    recovery_probability: float
+    expected_recovery_value: float
+    priority_score: float
+    recovery_risk_band: str
+    priority_band: str
+    recommended_action: str
+    targeted_by_capacity_policy: bool
+    status: str
+    attempt_count: int
+    next_action_at: datetime | None
+
+
+class RecoveryQueueResponse(BaseModel):
+    total: int
+    limit: int
+    items: list[RecoveryQueueItemResponse]
+
+# ============================================================================
+# RECOVERY QUEUE
+# ============================================================================
+
+
+@router.get(
+    "/queue",
+    response_model=RecoveryQueueResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_recovery_queue(
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=500,
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the highest-priority OPEN recovery cases.
+
+    Queue ordering is based on the same deterministic
+    decision engine used by the decision workflow.
+
+    Ordering:
+
+        1. Expected recovery value
+        2. Recovery probability
+        3. Amount at risk
+        4. Recovery case ID
+
+    Only OPEN recovery cases are eligible.
+    """
+
+    recovery_cases = (
+        db.query(RecoveryCase)
+        .filter(
+            RecoveryCase.status == "OPEN",
+            RecoveryCase.recovery_probability.isnot(None),
+        )
+        .all()
+    )
+
+    engine = DecisionEngine()
+
+    queue_items: list[
+        RecoveryQueueItemResponse
+    ] = []
+
+    for recovery_case in recovery_cases:
+        decision = engine.decide(
+            customer_id=recovery_case.customer_id,
+            recovery_probability=float(
+                recovery_case.recovery_probability
+            ),
+            amount_at_risk=float(
+                recovery_case.amount_at_risk
+            ),
+        )
+
+        queue_items.append(
+            RecoveryQueueItemResponse(
+                recovery_case_id=recovery_case.id,
+                customer_id=recovery_case.customer_id,
+                amount_at_risk=decision.amount_at_risk,
+                recovery_probability=(
+                    decision.recovery_probability
+                ),
+                expected_recovery_value=(
+                    decision.expected_recovery_value
+                ),
+                priority_score=decision.priority_score,
+                recovery_risk_band=(
+                    decision.recovery_risk_band
+                ),
+                priority_band=decision.priority_band,
+                recommended_action=(
+                    decision.recommended_action
+                ),
+                targeted_by_capacity_policy=(
+                    decision.targeted_by_capacity_policy
+                ),
+                status=recovery_case.status,
+                attempt_count=recovery_case.attempt_count,
+                next_action_at=(
+                    recovery_case.next_action_at
+                ),
+            )
+        )
+
+        # ---------------------------------------------------------
+    # Apply locked capacity policy
+    # ---------------------------------------------------------
+
+    queue_items.sort(
+        key=lambda item: (
+            -item.expected_recovery_value,
+            -item.recovery_probability,
+            -item.amount_at_risk,
+            item.recovery_case_id,
+        )
+    )
+
+    total = len(queue_items)
+
+    target_count = round(
+        total * engine.target_percentage
+    )
+
+    target_count = max(
+        1,
+        target_count,
+    ) if total > 0 else 0
+
+    for index, item in enumerate(queue_items):
+        item.targeted_by_capacity_policy = (
+            index < target_count
+        )
+
+    return RecoveryQueueResponse(
+        total=total,
+        limit=limit,
+        items=queue_items[:limit],
+    )
 
 
 # ============================================================================
