@@ -1,5 +1,5 @@
-
 import type {
+  AdminDecision,
   AgentDecision,
   ApprovalRequest,
   AuditLog,
@@ -142,7 +142,15 @@ export async function executeRecoveryAction(
     },
   );
 }
+// -----------------------------------------------------------------------------
+// Admin — Decisions
+// -----------------------------------------------------------------------------
 
+export async function getAllDecisions(): Promise<AdminDecision[]> {
+  return request<AdminDecision[]>(
+    "/api/v1/recovery-cases/decisions",
+  );
+}
 
 // -----------------------------------------------------------------------------
 // Health

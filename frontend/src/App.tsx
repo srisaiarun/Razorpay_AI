@@ -8,6 +8,7 @@ import {
 import Dashboard from "./pages/Dashboard";
 import RecoveryQueue from "./pages/RecoveryQueue";
 import RecoveryCaseDetails from "./pages/RecoveryCaseDetails";
+import Decisions from "./pages/Decisions";
 
 function App() {
   return (
@@ -24,18 +25,13 @@ function App() {
         />
 
         <Route
-          path="/recovery-cases/:recoveryCaseId"
-          element={<RecoveryCaseDetails />}
+          path="/decisions"
+          element={<Decisions />}
         />
 
         <Route
-          path="/decisions"
-          element={
-            <PlaceholderPage
-              title="Decisions"
-              description="AI recovery decisions and reasoning will appear here."
-            />
-          }
+          path="/recovery-cases/:recoveryCaseId"
+          element={<RecoveryCaseDetails />}
         />
 
         <Route
@@ -85,20 +81,14 @@ function PlaceholderPage({
 
         <p>{description}</p>
 
-        <NavigateBack />
+        <a
+          href="/"
+          className="secondary-button"
+        >
+          Back to Dashboard
+        </a>
       </div>
     </div>
-  );
-}
-
-function NavigateBack() {
-  return (
-    <a
-      href="/"
-      className="secondary-button"
-    >
-      Back to Dashboard
-    </a>
   );
 }
 

@@ -11,14 +11,12 @@ from backend.app.models.agent_decision import AgentDecision
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.recovery_action import RecoveryAction
 from backend.app.models.recovery_case import RecoveryCase
+from backend.app.services.decision.decision_engine import DecisionEngine
 from backend.app.services.decision.decision_persistence import (
     DecisionPersistenceService,
 )
 from backend.app.services.recovery.action_executor import (
     recovery_action_to_dict,
-)
-from backend.app.services.decision.decision_engine import (
-    DecisionEngine,
 )
 
 
@@ -26,6 +24,11 @@ router = APIRouter(
     prefix="/api/v1/recovery-cases",
     tags=["Recovery Cases"],
 )
+
+
+# ============================================================================
+# DATABASE
+# ============================================================================
 
 
 def get_db():
@@ -77,6 +80,23 @@ class RecoveryDecisionResponse(BaseModel):
     created_at: datetime
 
 
+class AdminDecisionResponse(BaseModel):
+    id: int
+    recovery_case_id: int
+    customer_id: int
+    decision: str
+    reasoning_summary: str
+    confidence: float
+    expected_recovery_amount: float
+    policy_status: str
+    requires_human_approval: bool
+    action_id: int | None
+    action_type: str | None
+    action_status: str | None
+    case_status: str
+    created_at: datetime
+
+
 class RecoveryActionResponse(BaseModel):
     id: int
     recovery_case_id: int
@@ -101,6 +121,7 @@ class AuditLogResponse(BaseModel):
     event_data: dict | None
     created_at: datetime
 
+
 class RecoveryQueueItemResponse(BaseModel):
     recovery_case_id: int
     customer_id: int
@@ -121,6 +142,7 @@ class RecoveryQueueResponse(BaseModel):
     total: int
     limit: int
     items: list[RecoveryQueueItemResponse]
+
 
 # ============================================================================
 # RECOVERY QUEUE
@@ -212,9 +234,9 @@ def get_recovery_queue(
             )
         )
 
-        # ---------------------------------------------------------
+    # ------------------------------------------------------------------
     # Apply locked capacity policy
-    # ---------------------------------------------------------
+    # ------------------------------------------------------------------
 
     queue_items.sort(
         key=lambda item: (
@@ -231,10 +253,11 @@ def get_recovery_queue(
         total * engine.target_percentage
     )
 
-    target_count = max(
-        1,
-        target_count,
-    ) if total > 0 else 0
+    target_count = (
+        max(1, target_count)
+        if total > 0
+        else 0
+    )
 
     for index, item in enumerate(queue_items):
         item.targeted_by_capacity_policy = (
@@ -246,6 +269,96 @@ def get_recovery_queue(
         limit=limit,
         items=queue_items[:limit],
     )
+
+
+# ============================================================================
+# ADMIN — ALL DECISIONS
+#
+# IMPORTANT:
+# This route MUST appear before /{recovery_case_id}.
+# ============================================================================
+
+
+@router.get(
+    "/decisions",
+    response_model=list[AdminDecisionResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_all_decisions(
+    db: Session = Depends(get_db),
+):
+    """
+    Return all persisted AI recovery decisions for the admin UI.
+
+    Each decision is joined with its recovery case and
+    associated recovery action.
+    """
+
+    rows = (
+        db.query(
+            AgentDecision,
+            RecoveryCase,
+            RecoveryAction,
+        )
+        .join(
+            RecoveryCase,
+            RecoveryCase.id
+            == AgentDecision.recovery_case_id,
+        )
+        .outerjoin(
+            RecoveryAction,
+            RecoveryAction.agent_decision_id
+            == AgentDecision.id,
+        )
+        .order_by(
+            AgentDecision.id.desc()
+        )
+        .all()
+    )
+
+    return [
+        AdminDecisionResponse(
+            id=agent_decision.id,
+            recovery_case_id=agent_decision.recovery_case_id,
+            customer_id=recovery_case.customer_id,
+            decision=agent_decision.decision,
+            reasoning_summary=(
+                agent_decision.reasoning_summary
+            ),
+            confidence=float(
+                agent_decision.confidence
+            ),
+            expected_recovery_amount=float(
+                agent_decision.expected_recovery_amount
+            ),
+            policy_status=agent_decision.policy_status,
+            requires_human_approval=(
+                agent_decision.requires_human_approval
+            ),
+            action_id=(
+                recovery_action.id
+                if recovery_action is not None
+                else None
+            ),
+            action_type=(
+                recovery_action.action_type
+                if recovery_action is not None
+                else None
+            ),
+            action_status=(
+                recovery_action.status
+                if recovery_action is not None
+                else None
+            ),
+            case_status=recovery_case.status,
+            created_at=agent_decision.created_at,
+        )
+        for (
+            agent_decision,
+            recovery_case,
+            recovery_action,
+        ) in rows
+    ]
 
 
 # ============================================================================
@@ -275,9 +388,11 @@ def create_recovery_decision(
     persistence_service = DecisionPersistenceService()
 
     try:
-        agent_decision = persistence_service.create_decision(
-            db,
-            recovery_case_id=recovery_case_id,
+        agent_decision = (
+            persistence_service.create_decision(
+                db,
+                recovery_case_id=recovery_case_id,
+            )
         )
 
         db.commit()
@@ -322,8 +437,12 @@ def create_recovery_decision(
         agent_decision_id=agent_decision.id,
         recovery_action_id=recovery_action.id,
         decision=agent_decision.decision,
-        reasoning_summary=agent_decision.reasoning_summary,
-        confidence=float(agent_decision.confidence),
+        reasoning_summary=(
+            agent_decision.reasoning_summary
+        ),
+        confidence=float(
+            agent_decision.confidence
+        ),
         expected_recovery_amount=float(
             agent_decision.expected_recovery_amount
         ),
@@ -377,11 +496,17 @@ def get_recovery_case(
         id=recovery_case.id,
         transaction_id=recovery_case.transaction_id,
         customer_id=recovery_case.customer_id,
-        amount_at_risk=float(recovery_case.amount_at_risk),
+        amount_at_risk=float(
+            recovery_case.amount_at_risk
+        ),
         failure_class=recovery_case.failure_class,
-        risk_score=float(recovery_case.risk_score),
+        risk_score=float(
+            recovery_case.risk_score
+        ),
         recovery_probability=(
-            float(recovery_case.recovery_probability)
+            float(
+                recovery_case.recovery_probability
+            )
             if recovery_case.recovery_probability is not None
             else None
         ),
@@ -472,8 +597,12 @@ def get_recovery_decision(
         agent_decision_id=agent_decision.id,
         recovery_action_id=recovery_action.id,
         decision=agent_decision.decision,
-        reasoning_summary=agent_decision.reasoning_summary,
-        confidence=float(agent_decision.confidence),
+        reasoning_summary=(
+            agent_decision.reasoning_summary
+        ),
+        confidence=float(
+            agent_decision.confidence
+        ),
         expected_recovery_amount=float(
             agent_decision.expected_recovery_amount
         ),

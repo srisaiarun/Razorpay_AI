@@ -82,6 +82,23 @@ export interface AgentDecision {
   created_at: string;
 }
 
+export interface AdminDecision {
+  id: number;
+  recovery_case_id: number;
+  customer_id: number;
+  decision: string;
+  reasoning_summary: string;
+  confidence: number;
+  expected_recovery_amount: number;
+  policy_status: string;
+  requires_human_approval: boolean;
+  action_id: number | null;
+  action_type: string | null;
+  action_status: string | null;
+  case_status: RecoveryStatus;
+  created_at: string;
+}
+
 
 export interface RecoveryAction {
   id: number;
