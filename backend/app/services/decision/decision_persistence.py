@@ -155,6 +155,7 @@ class DecisionPersistenceService:
 
         action_status = self._action_status(
             decision.recommended_action,
+            requires_human_approval,
         )
 
         recovery_action = RecoveryAction(
@@ -190,9 +191,7 @@ class DecisionPersistenceService:
             event_type="AGENT_DECISION_CREATED",
             actor_type=self.ACTOR_TYPE,
             actor_id=self.ACTOR_ID,
-            message=(
-                "AI recovery decision created."
-            ),
+            message="AI recovery decision created.",
             event_data={
                 "agent_decision_id": agent_decision.id,
                 "recovery_action_id": recovery_action.id,
@@ -209,7 +208,9 @@ class DecisionPersistenceService:
                     decision.expected_recovery_value,
                     2,
                 ),
-                "recovery_risk_band": decision.recovery_risk_band,
+                "recovery_risk_band": (
+                    decision.recovery_risk_band
+                ),
                 "priority_band": decision.priority_band,
                 "priority_score": round(
                     decision.priority_score,
@@ -231,30 +232,62 @@ class DecisionPersistenceService:
     @staticmethod
     def _action_status(
         action: str,
+        requires_human_approval: bool,
     ) -> str:
         """
         Convert a decision-engine action into an
         operational RecoveryAction status.
+
+        Human approval is determined by the decision policy.
+        This method only translates that decision into an
+        operational execution state.
+
+        State mapping:
+
+            NO_ACTION
+                -> SKIPPED
+
+            MONITOR
+                -> PENDING
+
+            LOW_COST_RECOVERY
+                -> PENDING
+
+            STANDARD_RECOVERY
+                -> PENDING
+
+            HIGH_PRIORITY_RECOVERY
+                -> PENDING_APPROVAL
+                   when human approval is required
+
+            Any executable recovery action
+                -> PENDING
+                   when human approval is not required
         """
 
+        # No recovery action should be executed.
         if action == "NO_ACTION":
             return "SKIPPED"
 
+        # Monitoring is not an immediate execution action.
         if action == "MONITOR":
             return "PENDING"
 
-        if action == "LOW_COST_RECOVERY":
-            return "PENDING"
+        executable_actions = {
+            "LOW_COST_RECOVERY",
+            "STANDARD_RECOVERY",
+            "HIGH_PRIORITY_RECOVERY",
+        }
 
-        if action == "STANDARD_RECOVERY":
+        if action not in executable_actions:
+            raise ValueError(
+                f"Unknown recovery action: {action}"
+            )
+
+        if requires_human_approval:
             return "PENDING_APPROVAL"
 
-        if action == "HIGH_PRIORITY_RECOVERY":
-            return "PENDING_APPROVAL"
-
-        raise ValueError(
-            f"Unknown recovery action: {action}"
-        )
+        return "PENDING"
 
 
 def decision_to_dict(
@@ -266,13 +299,9 @@ def decision_to_dict(
 
     return {
         "id": decision.id,
-        "recovery_case_id": (
-            decision.recovery_case_id
-        ),
+        "recovery_case_id": decision.recovery_case_id,
         "decision": decision.decision,
-        "reasoning_summary": (
-            decision.reasoning_summary
-        ),
+        "reasoning_summary": decision.reasoning_summary,
         "confidence": float(
             decision.confidence
         ),
