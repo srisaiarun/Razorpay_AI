@@ -19,6 +19,7 @@ import {
 
 import {
   Link,
+  useNavigate,
 } from "react-router-dom";
 
 import {
@@ -35,6 +36,7 @@ import type {
 
 import "../App.css";
 
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -43,13 +45,13 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+
 function formatPercentage(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function priorityClass(
-  priority: string,
-): string {
+
+function priorityClass(priority: string): string {
   switch (priority) {
     case "P1_HIGH":
       return "priority priority-p1";
@@ -65,9 +67,8 @@ function priorityClass(
   }
 }
 
-function actionClass(
-  action: string,
-): string {
+
+function actionClass(action: string): string {
   switch (action) {
     case "HIGH_PRIORITY_RECOVERY":
       return "action action-high";
@@ -85,6 +86,7 @@ function actionClass(
       return "action action-none";
   }
 }
+
 
 function Sidebar() {
   return (
@@ -104,6 +106,7 @@ function Sidebar() {
           </div>
         </div>
       </div>
+
 
       <nav className="navigation">
         <div className="nav-section-label">
@@ -134,6 +137,7 @@ function Sidebar() {
           Decisions
         </Link>
 
+
         <div className="nav-section-label nav-section-spaced">
           MANAGEMENT
         </div>
@@ -154,6 +158,7 @@ function Sidebar() {
           Recovery Actions
         </Link>
       </nav>
+
 
       <div className="sidebar-footer">
         <div className="system-status">
@@ -178,7 +183,10 @@ function Sidebar() {
   );
 }
 
+
 export default function RecoveryQueue() {
+  const navigate = useNavigate();
+
   const [queue, setQueue] =
     useState<RecoveryQueueItem[]>([]);
 
@@ -213,6 +221,7 @@ export default function RecoveryQueue() {
   const [backendHealthy, setBackendHealthy] =
     useState(false);
 
+
   async function loadQueue() {
     setLoading(true);
     setError(null);
@@ -228,6 +237,7 @@ export default function RecoveryQueue() {
 
       setQueue(queueResponse.items);
       setTotal(queueResponse.total);
+
       setBackendHealthy(
         health.status === "healthy",
       );
@@ -244,9 +254,11 @@ export default function RecoveryQueue() {
     }
   }
 
+
   useEffect(() => {
     void loadQueue();
   }, []);
+
 
   const filteredQueue =
     useMemo(() => {
@@ -298,11 +310,22 @@ export default function RecoveryQueue() {
       targetedOnly,
     ]);
 
+
+  function openCase(
+    recoveryCaseId: number,
+  ) {
+    navigate(
+      `/recovery-cases/${recoveryCaseId}`,
+    );
+  }
+
+
   return (
     <div className="app-shell">
       <Sidebar />
 
       <main className="main-content">
+
         <header className="topbar">
           <div>
             <div className="eyebrow">
@@ -338,12 +361,14 @@ export default function RecoveryQueue() {
           </button>
         </header>
 
+
         <div className="queue-back">
           <Link to="/">
             <ArrowLeft size={15} />
             Back to dashboard
           </Link>
         </div>
+
 
         {error && (
           <div className="error-banner">
@@ -362,7 +387,9 @@ export default function RecoveryQueue() {
           </div>
         )}
 
+
         <section className="queue-toolbar panel">
+
           <div className="queue-search">
             <Search size={17} />
 
@@ -377,6 +404,7 @@ export default function RecoveryQueue() {
               }
             />
           </div>
+
 
           <div className="filter-group">
             <SlidersHorizontal
@@ -415,6 +443,7 @@ export default function RecoveryQueue() {
             </select>
           </div>
 
+
           <div className="filter-group">
             <select
               value={action}
@@ -452,6 +481,7 @@ export default function RecoveryQueue() {
             </select>
           </div>
 
+
           <div className="filter-group">
             <select
               value={status}
@@ -481,6 +511,7 @@ export default function RecoveryQueue() {
             </select>
           </div>
 
+
           <label className="targeted-filter">
             <input
               type="checkbox"
@@ -494,9 +525,12 @@ export default function RecoveryQueue() {
 
             Targeted only
           </label>
+
         </section>
 
+
         <section className="queue-summary">
+
           <div>
             <strong>
               {filteredQueue.length}
@@ -519,10 +553,14 @@ export default function RecoveryQueue() {
                 : "Disconnected"}
             </strong>
           </div>
+
         </section>
 
+
         <section className="panel queue-panel-full">
+
           <div className="panel-header">
+
             <div>
               <h2>
                 AI Recovery Queue
@@ -538,31 +576,47 @@ export default function RecoveryQueue() {
               5% locked capacity
               policy
             </div>
+
           </div>
 
+
           <div className="table-wrapper">
+
             <table>
+
               <thead>
                 <tr>
                   <th>CASE</th>
+
                   <th>
                     AMOUNT AT RISK
                   </th>
+
                   <th>
                     PROBABILITY
                   </th>
+
                   <th>
                     EXPECTED RECOVERY
                   </th>
+
                   <th>
                     PRIORITY
                   </th>
-                  <th>ACTION</th>
-                  <th>STATUS</th>
+
+                  <th>
+                    ACTION
+                  </th>
+
+                  <th>
+                    STATUS
+                  </th>
                 </tr>
               </thead>
 
+
               <tbody>
+
                 {loading && (
                   <tr>
                     <td
@@ -574,6 +628,7 @@ export default function RecoveryQueue() {
                     </td>
                   </tr>
                 )}
+
 
                 {!loading &&
                   filteredQueue.length ===
@@ -590,6 +645,7 @@ export default function RecoveryQueue() {
                     </tr>
                   )}
 
+
                 {!loading &&
                   filteredQueue.map(
                     (item) => (
@@ -599,14 +655,25 @@ export default function RecoveryQueue() {
                         }
                         className={
                           item.targeted_by_capacity_policy
-                            ? "targeted-row"
-                            : ""
+                            ? "targeted-row case-row-clickable"
+                            : "case-row-clickable"
                         }
+                        onClick={() =>
+                          openCase(
+                            item.recovery_case_id,
+                          )
+                        }
+                        title={`Open recovery case #${item.recovery_case_id}`}
                       >
+
                         <td>
+
                           <Link
                             to={`/recovery-cases/${item.recovery_case_id}`}
                             className="case-link"
+                            onClick={(event) =>
+                              event.stopPropagation()
+                            }
                           >
                             #
                             {
@@ -620,7 +687,9 @@ export default function RecoveryQueue() {
                               item.customer_id
                             }
                           </div>
+
                         </td>
+
 
                         <td className="amount-cell">
                           {formatCurrency(
@@ -628,8 +697,11 @@ export default function RecoveryQueue() {
                           )}
                         </td>
 
+
                         <td>
+
                           <div className="probability">
+
                             <span>
                               {formatPercentage(
                                 item.recovery_probability,
@@ -637,6 +709,7 @@ export default function RecoveryQueue() {
                             </span>
 
                             <div className="probability-bar">
+
                               <div
                                 className="probability-fill"
                                 style={{
@@ -647,9 +720,13 @@ export default function RecoveryQueue() {
                                   )}%`,
                                 }}
                               />
+
                             </div>
+
                           </div>
+
                         </td>
+
 
                         <td className="expected-cell">
                           {formatCurrency(
@@ -657,7 +734,9 @@ export default function RecoveryQueue() {
                           )}
                         </td>
 
+
                         <td>
+
                           <span
                             className={priorityClass(
                               item.priority_band,
@@ -667,9 +746,12 @@ export default function RecoveryQueue() {
                               item.priority_band
                             }
                           </span>
+
                         </td>
 
+
                         <td>
+
                           <span
                             className={actionClass(
                               item.recommended_action,
@@ -680,10 +762,14 @@ export default function RecoveryQueue() {
                               " ",
                             )}
                           </span>
+
                         </td>
 
+
                         <td>
+
                           <div className="status-cell">
+
                             <span className="status-badge">
                               {item.status}
                             </span>
@@ -693,15 +779,23 @@ export default function RecoveryQueue() {
                                 TARGETED
                               </span>
                             )}
+
                           </div>
+
                         </td>
+
                       </tr>
                     ),
                   )}
+
               </tbody>
+
             </table>
+
           </div>
+
         </section>
+
       </main>
     </div>
   );

@@ -7,19 +7,27 @@ import {
 
 import Dashboard from "./pages/Dashboard";
 import RecoveryQueue from "./pages/RecoveryQueue";
+import RecoveryCaseDetails from "./pages/RecoveryCaseDetails";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route
+          path="/"
+          element={<Dashboard />}
+        />
 
         <Route
           path="/recovery-queue"
           element={<RecoveryQueue />}
         />
 
-        {/* Temporary placeholders for pages we will build next */}
+        <Route
+          path="/recovery-cases/:recoveryCaseId"
+          element={<RecoveryCaseDetails />}
+        />
+
         <Route
           path="/decisions"
           element={
@@ -51,16 +59,6 @@ function App() {
         />
 
         <Route
-          path="/recovery-cases/:recoveryCaseId"
-          element={
-            <PlaceholderPage
-              title="Recovery Case"
-              description="Case details, AI decision, approval, execution and audit timeline will appear here."
-            />
-          }
-        />
-
-        <Route
           path="*"
           element={<Navigate to="/" replace />}
         />
@@ -77,53 +75,30 @@ function PlaceholderPage({
   description: string;
 }) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        background: "#070d16",
-        color: "#f4f7fb",
-        padding: "32px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "600px",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            letterSpacing: "0.14em",
-            color: "#5b9cff",
-            marginBottom: "12px",
-          }}
-        >
+    <div className="page-shell">
+      <div className="placeholder-page">
+        <div className="eyebrow">
           RAZORRECOVER AI
         </div>
 
-        <h1
-          style={{
-            margin: 0,
-            fontSize: "32px",
-          }}
-        >
-          {title}
-        </h1>
+        <h1>{title}</h1>
 
-        <p
-          style={{
-            marginTop: "12px",
-            color: "#7187a2",
-            lineHeight: 1.6,
-          }}
-        >
-          {description}
-        </p>
+        <p>{description}</p>
+
+        <NavigateBack />
       </div>
     </div>
+  );
+}
+
+function NavigateBack() {
+  return (
+    <a
+      href="/"
+      className="secondary-button"
+    >
+      Back to Dashboard
+    </a>
   );
 }
 
