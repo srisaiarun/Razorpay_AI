@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
+from backend.app.models.recovery_action import RecoveryAction
 from backend.app.db.session import SessionLocal
 from backend.app.services.recovery.action_executor import (
     RecoveryActionExecutor,
@@ -67,6 +67,34 @@ class RecoveryActionResponse(BaseModel):
     created_at: datetime
     completed_at: datetime | None
 
+# ----------------------------------------------------------------------
+# LIST ALL RECOVERY ACTIONS
+# ----------------------------------------------------------------------
+
+@router.get(
+    "",
+    response_model=list[RecoveryActionResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_all_recovery_actions(
+    db: Session = Depends(get_db),
+):
+    """
+    Return all persisted recovery actions for the admin UI.
+
+    Actions are ordered newest first.
+    """
+
+    actions = (
+        db.query(RecoveryAction)
+        .order_by(RecoveryAction.created_at.desc())
+        .all()
+    )
+
+    return [
+        recovery_action_to_dict(action)
+        for action in actions
+    ]
 
 # ----------------------------------------------------------------------
 # APPROVE

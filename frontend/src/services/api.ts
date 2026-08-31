@@ -1,4 +1,5 @@
 import type {
+  AdminCustomer,
   AdminDecision,
   AgentDecision,
   ApprovalRequest,
@@ -173,3 +174,25 @@ export async function getHealth(): Promise<{
 export type {
   AgentDecision,
 };
+// -----------------------------------------------------------------------------
+// Admin — Customers
+// -----------------------------------------------------------------------------
+
+export async function getAllCustomers(): Promise<
+  AdminCustomer[]
+> {
+  return request<AdminCustomer[]>(
+    "/api/v1/recovery-cases/customers",
+  );
+}
+// -----------------------------------------------------------------------------
+// Admin — Recovery Actions
+// -----------------------------------------------------------------------------
+
+export async function getAllRecoveryActions(): Promise<
+  RecoveryAction[]
+> {
+  return request<RecoveryAction[]>(
+    "/api/v1/recovery-actions",
+  );
+}

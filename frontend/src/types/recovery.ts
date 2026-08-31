@@ -148,3 +148,22 @@ export interface ApprovalRequest {
   approver_id: string;
   approval_reason?: string | null;
 } 
+export interface AdminCustomer {
+  id: number;
+  external_customer_id: string;
+  name: string;
+  email: string;
+  lifetime_value: number;
+  successful_payments: number;
+  failed_payments: number;
+  opted_out: boolean;
+
+  total_cases: number;
+  open_cases: number;
+  recovered_cases: number;
+  total_amount_at_risk: number;
+  expected_recovery_value: number;
+
+  latest_case_status: string | null;
+  latest_case_id: number | null;
+}

@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
+from backend.app.models.customer import Customer
 from backend.app.db.session import SessionLocal
 from backend.app.models.agent_decision import AgentDecision
 from backend.app.models.audit_log import AuditLog
@@ -48,6 +48,24 @@ def get_db():
 # RESPONSE SCHEMAS
 # ============================================================================
 
+class AdminCustomerResponse(BaseModel):
+    id: int
+    external_customer_id: str
+    name: str
+    email: str
+    lifetime_value: float
+    successful_payments: int
+    failed_payments: int
+    opted_out: bool
+
+    total_cases: int
+    open_cases: int
+    recovered_cases: int
+    total_amount_at_risk: float
+    expected_recovery_value: float
+
+    latest_case_status: str | None
+    latest_case_id: int | None
 
 class RecoveryCaseResponse(BaseModel):
     id: int
@@ -277,7 +295,113 @@ def get_recovery_queue(
 # IMPORTANT:
 # This route MUST appear before /{recovery_case_id}.
 # ============================================================================
+@router.get(
+    "/customers",
+    response_model=list[AdminCustomerResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_all_customers(
+    db: Session = Depends(get_db),
+):
+    """
+    Return customer-level recovery information for the admin UI.
 
+    Recovery metrics are derived from the customer's persisted
+    recovery cases and latest AI decisions.
+    """
+
+    customers = (
+        db.query(Customer)
+        .order_by(Customer.id.asc())
+        .all()
+    )
+
+    results: list[AdminCustomerResponse] = []
+
+    for customer in customers:
+        cases = list(customer.recovery_cases)
+
+        total_cases = len(cases)
+
+        open_cases = sum(
+            1
+            for case in cases
+            if case.status == "OPEN"
+        )
+
+        recovered_cases = sum(
+            1
+            for case in cases
+            if case.status == "RECOVERED"
+        )
+
+        total_amount_at_risk = sum(
+            float(case.amount_at_risk)
+            for case in cases
+        )
+
+        expected_recovery_value = sum(
+            (
+                float(case.amount_at_risk)
+                * float(case.recovery_probability)
+            )
+            for case in cases
+            if case.recovery_probability is not None
+        )
+
+        latest_case = (
+            max(
+                cases,
+                key=lambda case: case.created_at,
+            )
+            if cases
+            else None
+        )
+
+        results.append(
+            AdminCustomerResponse(
+                id=customer.id,
+                external_customer_id=(
+                    customer.external_customer_id
+                ),
+                name=customer.name,
+                email=customer.email,
+                lifetime_value=float(
+                    customer.lifetime_value
+                ),
+                successful_payments=(
+                    customer.successful_payments
+                ),
+                failed_payments=(
+                    customer.failed_payments
+                ),
+                opted_out=customer.opted_out,
+                total_cases=total_cases,
+                open_cases=open_cases,
+                recovered_cases=recovered_cases,
+                total_amount_at_risk=(
+                    total_amount_at_risk
+                ),
+                expected_recovery_value=(
+                    round(
+                        expected_recovery_value,
+                        2,
+                    )
+                ),
+                latest_case_status=(
+                    latest_case.status
+                    if latest_case
+                    else None
+                ),
+                latest_case_id=(
+                    latest_case.id
+                    if latest_case
+                    else None
+                ),
+            )
+        )
+
+    return results
 
 @router.get(
     "/decisions",
