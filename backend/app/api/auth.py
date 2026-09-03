@@ -15,6 +15,7 @@ from backend.app.db.session import SessionLocal
 from backend.app.models import User
 from backend.app.schemas.auth import (
     AuthResponse,
+    CustomerLoginRequest,
     LoginRequest,
     UserResponse,
 )
@@ -28,13 +29,22 @@ router = APIRouter(
 security = HTTPBearer()
 
 
+# =========================================================
+# DATABASE
+# =========================================================
+
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
     finally:
         db.close()
 
+
+# =========================================================
+# MANAGEMENT / STANDARD LOGIN
+# =========================================================
 
 @router.post(
     "/login",
@@ -45,6 +55,12 @@ def login(
     request: LoginRequest,
     db: Session = Depends(get_db),
 ):
+    """
+    Management/staff authentication using email + password.
+
+    This endpoint remains unchanged for the management portal.
+    """
+
     user = (
         db.query(User)
         .filter(User.email == request.email)
@@ -73,6 +89,7 @@ def login(
         )
 
     user.last_login_at = datetime.utcnow()
+
     db.commit()
     db.refresh(user)
 
@@ -89,14 +106,83 @@ def login(
     )
 
 
+# =========================================================
+# CUSTOMER LOGIN
+# =========================================================
+
+@router.post(
+    "/customer-login",
+    response_model=AuthResponse,
+    status_code=status.HTTP_200_OK,
+)
+def customer_login(
+    request: CustomerLoginRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Customer portal authentication using customer ID.
+
+    The customer ID is resolved against an existing CUSTOMER
+    user account. No customer password is required.
+
+    The generated JWT is tied to the User record, which in turn
+    contains the customer_id used by all customer APIs.
+    """
+
+    user = (
+        db.query(User)
+        .filter(
+            User.customer_id == request.customer_id,
+            User.role == "CUSTOMER",
+        )
+        .first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid customer ID.",
+        )
+
+    if user.status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Customer account is inactive.",
+        )
+
+    user.last_login_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
+    )
+
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user,
+    )
+
+
+# =========================================================
+# CURRENT AUTHENTICATED USER
+# =========================================================
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate authentication credentials.",
-        headers={"WWW-Authenticate": "Bearer"},
+        headers={
+            "WWW-Authenticate": "Bearer",
+        },
     )
 
     token = credentials.credentials
@@ -128,21 +214,37 @@ def get_current_user(
     return user
 
 
+# =========================================================
+# CUSTOMER AUTHORIZATION
+# =========================================================
+
 def require_customer_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
+
     if current_user.role != "CUSTOMER":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Customer access required.",
         )
 
+    if current_user.customer_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Customer account is not linked to a customer profile.",
+        )
+
     return current_user
 
+
+# =========================================================
+# MANAGEMENT AUTHORIZATION
+# =========================================================
 
 def require_management_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
+
     if current_user.role != "MANAGEMENT":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -151,6 +253,10 @@ def require_management_user(
 
     return current_user
 
+
+# =========================================================
+# CURRENT USER
+# =========================================================
 
 @router.get(
     "/me",

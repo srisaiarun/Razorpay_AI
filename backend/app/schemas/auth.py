@@ -2,27 +2,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # =========================================================
-# REGISTRATION
-# =========================================================
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-
-    password: str = Field(
-        min_length=8,
-        max_length=128,
-    )
-
-    full_name: str = Field(
-        min_length=2,
-        max_length=200,
-    )
-
-    role: str
-
-
-# =========================================================
-# LOGIN
+# MANAGEMENT LOGIN
 # =========================================================
 
 class LoginRequest(BaseModel):
@@ -31,6 +11,23 @@ class LoginRequest(BaseModel):
     password: str = Field(
         min_length=1,
         max_length=128,
+    )
+
+
+# =========================================================
+# CUSTOMER LOGIN
+# =========================================================
+
+class CustomerLoginRequest(BaseModel):
+    """
+    Demo/customer portal authentication.
+
+    Customers authenticate using their customer access ID.
+    The backend resolves that ID to the linked customer profile.
+    """
+
+    customer_id: int = Field(
+        ge=1,
     )
 
 

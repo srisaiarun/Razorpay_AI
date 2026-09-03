@@ -10,17 +10,27 @@ import type {
   RecoveryQueueResponse,
 } from "../types/recovery";
 
+import type {
+  CustomerProfile,
+  CustomerSummary,
+  CustomerTransaction,
+  CustomerRecoveryCase,
+} from "../types/customer";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   "http://127.0.0.1:8000";
 
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Authentication Types
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export interface LoginRequest {
   email: string;
   password: string;
+}
+export interface CustomerLoginRequest {
+  customer_id: number;
 }
 
 export interface AuthUser {
@@ -37,11 +47,25 @@ export interface AuthResponse {
   token_type: string;
   user: AuthUser;
 }
+export async function customerLogin(
+  customerId: number,
+): Promise<AuthResponse> {
+  const payload: CustomerLoginRequest = {
+    customer_id: customerId,
+  };
 
+  return request<AuthResponse>(
+    "/api/v1/auth/customer-login",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
 
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Generic API Request
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 async function request<T>(
   path: string,
@@ -55,6 +79,7 @@ async function request<T>(
     `${API_BASE_URL}${path}`,
     {
       ...options,
+
       headers: {
         "Content-Type": "application/json",
 
@@ -90,34 +115,33 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Authentication
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function login(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
+  const payload: LoginRequest = {
+    email,
+    password,
+  };
+
   return request<AuthResponse>(
     "/api/v1/auth/login",
     {
       method: "POST",
-      body: JSON.stringify({
-        email,
-        password,
-      }),
+      body: JSON.stringify(payload),
     },
   );
 }
-
 
 export async function getCurrentUser(): Promise<AuthUser> {
   return request<AuthUser>(
     "/api/v1/auth/me",
   );
 }
-
 
 export function logout(): void {
   sessionStorage.removeItem(
@@ -129,10 +153,41 @@ export function logout(): void {
   );
 }
 
+// =============================================================================
+// Customer Portal
+// =============================================================================
 
-// -----------------------------------------------------------------------------
+export async function getCustomerProfile(): Promise<CustomerProfile> {
+  return request<CustomerProfile>(
+    "/api/v1/customer/me",
+  );
+}
+
+export async function getCustomerSummary(): Promise<CustomerSummary> {
+  return request<CustomerSummary>(
+    "/api/v1/customer/summary",
+  );
+}
+
+export async function getCustomerTransactions(): Promise<
+  CustomerTransaction[]
+> {
+  return request<CustomerTransaction[]>(
+    "/api/v1/customer/transactions",
+  );
+}
+
+export async function getCustomerRecoveryCases(): Promise<
+  CustomerRecoveryCase[]
+> {
+  return request<CustomerRecoveryCase[]>(
+    "/api/v1/customer/recovery-cases",
+  );
+}
+
+// =============================================================================
 // Recovery Cases
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function getRecoveryQueue(
   limit = 50,
@@ -142,7 +197,6 @@ export async function getRecoveryQueue(
   );
 }
 
-
 export async function getRecoveryCase(
   recoveryCaseId: number,
 ): Promise<RecoveryCase> {
@@ -150,7 +204,6 @@ export async function getRecoveryCase(
     `/api/v1/recovery-cases/${recoveryCaseId}`,
   );
 }
-
 
 export async function getRecoveryDecision(
   recoveryCaseId: number,
@@ -160,7 +213,6 @@ export async function getRecoveryDecision(
   );
 }
 
-
 export async function getRecoveryActions(
   recoveryCaseId: number,
 ): Promise<RecoveryAction[]> {
@@ -168,7 +220,6 @@ export async function getRecoveryActions(
     `/api/v1/recovery-cases/${recoveryCaseId}/actions`,
   );
 }
-
 
 export async function getRecoveryAudit(
   recoveryCaseId: number,
@@ -178,10 +229,9 @@ export async function getRecoveryAudit(
   );
 }
 
-
-// -----------------------------------------------------------------------------
-// Decision
-// -----------------------------------------------------------------------------
+// =============================================================================
+// Recovery Decision
+// =============================================================================
 
 export async function createRecoveryDecision(
   recoveryCaseId: number,
@@ -194,10 +244,9 @@ export async function createRecoveryDecision(
   );
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Recovery Actions
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function approveRecoveryAction(
   actionId: number,
@@ -212,7 +261,6 @@ export async function approveRecoveryAction(
   );
 }
 
-
 export async function executeRecoveryAction(
   actionId: number,
 ): Promise<RecoveryAction> {
@@ -224,10 +272,9 @@ export async function executeRecoveryAction(
   );
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Admin — Decisions
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function getAllDecisions(): Promise<
   AdminDecision[]
@@ -237,10 +284,9 @@ export async function getAllDecisions(): Promise<
   );
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Admin — Customers
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function getAllCustomers(): Promise<
   AdminCustomer[]
@@ -250,10 +296,9 @@ export async function getAllCustomers(): Promise<
   );
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Admin — Recovery Actions
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function getAllRecoveryActions(): Promise<
   RecoveryAction[]
@@ -263,10 +308,9 @@ export async function getAllRecoveryActions(): Promise<
   );
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Health
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 export async function getHealth(): Promise<{
   status: string;
@@ -280,13 +324,11 @@ export async function getHealth(): Promise<{
   }>("/health");
 }
 
-
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Agent Decision Type
-// -----------------------------------------------------------------------------
-//
-// Prevent unused-import errors if the API contract expands later.
+// =============================================================================
 
+// Prevent unused-import errors if the API contract expands later.
 export type {
   AgentDecision,
 };

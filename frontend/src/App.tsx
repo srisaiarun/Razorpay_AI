@@ -7,9 +7,9 @@ import {
 
 import LandingPage from "./pages/LandingPage";
 import CustomerLogin from "./pages/CustomerLogin";
+import CustomerDashboard from "./pages/CustomerDashboard";
 import ManagementLogin from "./pages/ManagementLogin";
 import ManagementRequestAccess from "./pages/ManagementRequestAccess";
-import CustomerRegister from "./pages/CustomerRegister";
 import Dashboard from "./pages/Dashboard";
 import RecoveryQueue from "./pages/RecoveryQueue";
 import RecoveryCaseDetails from "./pages/RecoveryCaseDetails";
@@ -22,7 +22,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* ============================================================ */}
-        {/* PUBLIC                                                        */}
+        {/* PUBLIC                                                       */}
         {/* ============================================================ */}
 
         <Route
@@ -31,21 +31,32 @@ function App() {
         />
 
         {/* ============================================================ */}
-        {/* AUTH                                                           */}
+        {/* CUSTOMER AUTH                                                */}
         {/* ============================================================ */}
 
         <Route
           path="/customer/login"
           element={<CustomerLogin />}
         />
+
+        {/* ============================================================ */}
+        {/* CUSTOMER PORTAL                                              */}
+        {/* ============================================================ */}
+
         <Route
-          path="/customer/register"
-          element={<CustomerRegister />}
+          path="/customer/dashboard"
+          element={<CustomerDashboard />}
         />
+
+        {/* ============================================================ */}
+        {/* MANAGEMENT AUTH                                               */}
+        {/* ============================================================ */}
+
         <Route
           path="/management/login"
           element={<ManagementLogin />}
         />
+
         <Route
           path="/management/request-access"
           element={<ManagementRequestAccess />}
@@ -140,7 +151,7 @@ function App() {
         />
 
         {/* ============================================================ */}
-        {/* FALLBACK                                                       */}
+        {/* FALLBACK                                                      */}
         {/* ============================================================ */}
 
         <Route

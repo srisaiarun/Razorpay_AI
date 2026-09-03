@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api import auth
 from backend.app.api.recovery import router as recovery_router
+from backend.app.api.customer import router as customer_router
 from backend.app.api.recovery_actions import (
     router as recovery_actions_router,
 )
@@ -37,7 +38,7 @@ app.include_router(auth.router)
 app.include_router(
     recovery_router,
 )
-
+app.include_router(customer_router)
 app.include_router(
     recovery_actions_router,
 )
