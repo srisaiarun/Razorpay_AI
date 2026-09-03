@@ -14,39 +14,119 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   "http://127.0.0.1:8000";
 
+// -----------------------------------------------------------------------------
+// Authentication Types
+// -----------------------------------------------------------------------------
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  full_name: string;
+  role: "CUSTOMER" | "MANAGEMENT";
+  status: string;
+  customer_id: number | null;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+
+// -----------------------------------------------------------------------------
+// Generic API Request
+// -----------------------------------------------------------------------------
 
 async function request<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
+  const token = sessionStorage.getItem(
+    "razorrecover_access_token",
+  );
+
   const response = await fetch(
     `${API_BASE_URL}${path}`,
     {
       ...options,
       headers: {
         "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+
         ...(options?.headers ?? {}),
       },
     },
   );
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}.`;
+    let message = `Request failed with status ${response.status}`;
 
     try {
-      const body = await response.json();
+      const errorData = await response.json();
 
-      if (typeof body?.detail === "string") {
-        message = body.detail;
+      if (
+        typeof errorData?.detail === "string"
+      ) {
+        message = errorData.detail;
       }
     } catch {
-      // Keep the default error message.
+      // Ignore JSON parsing errors.
     }
 
     throw new Error(message);
   }
 
   return response.json() as Promise<T>;
+}
+
+
+// -----------------------------------------------------------------------------
+// Authentication
+// -----------------------------------------------------------------------------
+
+export async function login(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
+  return request<AuthResponse>(
+    "/api/v1/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    },
+  );
+}
+
+
+export async function getCurrentUser(): Promise<AuthUser> {
+  return request<AuthUser>(
+    "/api/v1/auth/me",
+  );
+}
+
+
+export function logout(): void {
+  sessionStorage.removeItem(
+    "razorrecover_access_token",
+  );
+
+  sessionStorage.removeItem(
+    "razorrecover_user",
+  );
 }
 
 
@@ -143,15 +223,46 @@ export async function executeRecoveryAction(
     },
   );
 }
+
+
 // -----------------------------------------------------------------------------
 // Admin — Decisions
 // -----------------------------------------------------------------------------
 
-export async function getAllDecisions(): Promise<AdminDecision[]> {
+export async function getAllDecisions(): Promise<
+  AdminDecision[]
+> {
   return request<AdminDecision[]>(
     "/api/v1/recovery-cases/decisions",
   );
 }
+
+
+// -----------------------------------------------------------------------------
+// Admin — Customers
+// -----------------------------------------------------------------------------
+
+export async function getAllCustomers(): Promise<
+  AdminCustomer[]
+> {
+  return request<AdminCustomer[]>(
+    "/api/v1/recovery-cases/customers",
+  );
+}
+
+
+// -----------------------------------------------------------------------------
+// Admin — Recovery Actions
+// -----------------------------------------------------------------------------
+
+export async function getAllRecoveryActions(): Promise<
+  RecoveryAction[]
+> {
+  return request<RecoveryAction[]>(
+    "/api/v1/recovery-actions",
+  );
+}
+
 
 // -----------------------------------------------------------------------------
 // Health
@@ -170,29 +281,12 @@ export async function getHealth(): Promise<{
 }
 
 
+// -----------------------------------------------------------------------------
+// Agent Decision Type
+// -----------------------------------------------------------------------------
+//
 // Prevent unused-import errors if the API contract expands later.
+
 export type {
   AgentDecision,
 };
-// -----------------------------------------------------------------------------
-// Admin — Customers
-// -----------------------------------------------------------------------------
-
-export async function getAllCustomers(): Promise<
-  AdminCustomer[]
-> {
-  return request<AdminCustomer[]>(
-    "/api/v1/recovery-cases/customers",
-  );
-}
-// -----------------------------------------------------------------------------
-// Admin — Recovery Actions
-// -----------------------------------------------------------------------------
-
-export async function getAllRecoveryActions(): Promise<
-  RecoveryAction[]
-> {
-  return request<RecoveryAction[]>(
-    "/api/v1/recovery-actions",
-  );
-}

@@ -2,22 +2,54 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from backend.app.models.recovery_action import RecoveryAction
+
+from backend.app.core.security import (
+    create_access_token,
+    decode_access_token,
+    verify_password,
+)
 from backend.app.db.session import SessionLocal
-from backend.app.services.recovery.action_executor import (
-    RecoveryActionExecutor,
-    recovery_action_to_dict,
+from backend.app.models import User
+from backend.app.schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    UserResponse,
 )
 
+
+# =========================================================
+# ROUTER
+# =========================================================
 
 router = APIRouter(
-    prefix="/api/v1/recovery-actions",
-    tags=["Recovery Actions"],
+    prefix="/api/v1/auth",
+    tags=["Authentication"],
 )
 
+
+# =========================================================
+# JWT BEARER AUTHENTICATION
+# =========================================================
+
+security = HTTPBearer()
+
+
+# =========================================================
+# DATABASE DEPENDENCY
+# =========================================================
 
 def get_db():
     """
@@ -32,190 +64,233 @@ def get_db():
         db.close()
 
 
-class RecoveryActionApprovalRequest(BaseModel):
-    """
-    Request body used by a human reviewer to approve
-    a recovery action.
-    """
-
-    approver_id: str = Field(
-        ...,
-        min_length=1,
-        max_length=100,
-    )
-
-    approval_reason: str | None = Field(
-        default=None,
-        max_length=500,
-    )
-
-
-class RecoveryActionResponse(BaseModel):
-    """
-    API representation of a recovery action.
-    """
-
-    id: int
-    recovery_case_id: int
-    agent_decision_id: int
-    action_type: str
-    status: str
-    amount: float
-    external_reference: str | None
-    failure_reason: str | None
-    attempt_number: int
-    created_at: datetime
-    completed_at: datetime | None
-
-# ----------------------------------------------------------------------
-# LIST ALL RECOVERY ACTIONS
-# ----------------------------------------------------------------------
-
-@router.get(
-    "",
-    response_model=list[RecoveryActionResponse],
-    status_code=status.HTTP_200_OK,
-)
-def get_all_recovery_actions(
-    db: Session = Depends(get_db),
-):
-    """
-    Return all persisted recovery actions for the admin UI.
-
-    Actions are ordered newest first.
-    """
-
-    actions = (
-        db.query(RecoveryAction)
-        .order_by(RecoveryAction.created_at.desc())
-        .all()
-    )
-
-    return [
-        recovery_action_to_dict(action)
-        for action in actions
-    ]
-
-# ----------------------------------------------------------------------
-# APPROVE
-# ----------------------------------------------------------------------
+# =========================================================
+# LOGIN
+# =========================================================
 
 @router.post(
-    "/{action_id}/approve",
-    response_model=RecoveryActionResponse,
+    "/login",
+    response_model=AuthResponse,
     status_code=status.HTTP_200_OK,
 )
-def approve_recovery_action(
-    action_id: int,
-    request: RecoveryActionApprovalRequest,
+def login(
+    request: LoginRequest,
     db: Session = Depends(get_db),
 ):
     """
-    Approve a recovery action requiring human approval.
+    Authenticate an existing user.
 
-    This endpoint does NOT execute the action.
+    There is intentionally NO public registration endpoint.
 
-    State transition:
-
-        PENDING_APPROVAL
-            ->
-        PENDING
-
-    The actual execution must happen through the
-    /execute endpoint afterward.
+    Users must already exist in the users table.
     """
 
-    executor = RecoveryActionExecutor()
+    email = request.email.strip().lower()
 
-    try:
-        action = executor.approve(
-            db,
-            action_id=action_id,
-            approver_id=request.approver_id,
-            approval_reason=request.approval_reason,
+    # -----------------------------------------------------
+    # Find existing user
+    # -----------------------------------------------------
+
+    user = db.scalar(
+        select(User).where(
+            User.email == email
+        )
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
         )
 
-        db.commit()
-        db.refresh(action)
+    # -----------------------------------------------------
+    # Verify password
+    # -----------------------------------------------------
 
-        return recovery_action_to_dict(action)
-
-    except ValueError as exc:
-        db.rollback()
-
+    if not verify_password(
+        request.password,
+        user.password_hash,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    except Exception as exc:
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Recovery action approval failed.",
-        ) from exc
-
-
-# ----------------------------------------------------------------------
-# EXECUTE
-# ----------------------------------------------------------------------
-
-@router.post(
-    "/{action_id}/execute",
-    response_model=RecoveryActionResponse,
-    status_code=status.HTTP_200_OK,
-)
-def execute_recovery_action(
-    action_id: int,
-    db: Session = Depends(get_db),
-):
-    """
-    Execute a recovery action in simulated mode.
-
-    PENDING actions can execute.
-
-    PENDING_APPROVAL actions are blocked until
-    explicitly approved by a human reviewer.
-    """
-
-    executor = RecoveryActionExecutor()
-
-    try:
-        action = executor.execute(
-            db,
-            action_id=action_id,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
         )
 
-        db.commit()
-        db.refresh(action)
+    # -----------------------------------------------------
+    # Check account status
+    # -----------------------------------------------------
 
-        return recovery_action_to_dict(action)
-
-    except PermissionError as exc:
-        # The executor intentionally creates an audit record
-        # documenting the blocked execution attempt.
-        #
-        # Commit that audit record before returning 403.
-        db.commit()
-
+    if user.status != "ACTIVE":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc),
-        ) from exc
+            detail="This account is not active.",
+        )
 
-    except ValueError as exc:
-        db.rollback()
+    # -----------------------------------------------------
+    # Update last login
+    # -----------------------------------------------------
 
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    user.last_login_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    # -----------------------------------------------------
+    # Create JWT
+    # -----------------------------------------------------
+
+    access_token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
+    )
+
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
+
+
+# =========================================================
+# CURRENT USER
+# =========================================================
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(
+        security
+    ),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Resolve the authenticated user from the JWT bearer token.
+    """
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired authentication token.",
+        headers={
+            "WWW-Authenticate": "Bearer"
+        },
+    )
+
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+
+        user_id = payload.get("sub")
+
+        if user_id is None:
+            raise credentials_exception
+
+        user_id_int = int(user_id)
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
-        db.rollback()
+        raise credentials_exception from exc
 
+    # -----------------------------------------------------
+    # Find user
+    # -----------------------------------------------------
+
+    user = db.get(
+        User,
+        user_id_int,
+    )
+
+    if user is None:
+        raise credentials_exception
+
+    # -----------------------------------------------------
+    # Check account status
+    # -----------------------------------------------------
+
+    if user.status != "ACTIVE":
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Recovery action execution failed.",
-        ) from exc
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is not active.",
+        )
+
+    return user
+
+
+# =========================================================
+# CUSTOMER AUTHORIZATION
+# =========================================================
+
+def require_customer_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Require the authenticated user to be a CUSTOMER.
+    """
+
+    if current_user.role != "CUSTOMER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Customer access required.",
+        )
+
+    return current_user
+
+
+# =========================================================
+# MANAGEMENT AUTHORIZATION
+# =========================================================
+
+def require_management_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Require the authenticated user to be MANAGEMENT.
+
+    Additional defense-in-depth:
+    management accounts must use the approved
+    @klh.edu.in domain.
+    """
+
+    if current_user.role != "MANAGEMENT":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Management access required.",
+        )
+
+    if not current_user.email.lower().endswith(
+        "@klh.edu.in"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Management access is restricted.",
+        )
+
+    return current_user
+
+
+# =========================================================
+# CURRENT USER ENDPOINT
+# =========================================================
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_me(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return the currently authenticated user.
+    """
+
+    return UserResponse.model_validate(
+        current_user
+    )
