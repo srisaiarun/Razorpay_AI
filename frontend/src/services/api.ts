@@ -30,9 +30,8 @@ export interface LoginRequest {
   password: string;
 }
 export interface CustomerLoginRequest {
-  customer_id: number;
+  customer_access_id: string;
 }
-
 export interface AuthUser {
   id: number;
   email: string;
@@ -48,17 +47,15 @@ export interface AuthResponse {
   user: AuthUser;
 }
 export async function customerLogin(
-  customerId: number,
+  customerAccessId: string,
 ): Promise<AuthResponse> {
-  const payload: CustomerLoginRequest = {
-    customer_id: customerId,
-  };
-
   return request<AuthResponse>(
     "/api/v1/auth/customer-login",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        customer_access_id: customerAccessId.trim().toUpperCase(),
+      }),
     },
   );
 }

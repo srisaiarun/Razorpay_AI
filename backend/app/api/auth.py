@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-
+from backend.app.models import Customer, User
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -119,20 +119,24 @@ def customer_login(
     request: CustomerLoginRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Customer portal authentication using customer ID.
+    customer = (
+        db.query(Customer)
+        .filter(
+            Customer.customer_access_id == request.customer_access_id
+        )
+        .first()
+    )
 
-    The customer ID is resolved against an existing CUSTOMER
-    user account. No customer password is required.
-
-    The generated JWT is tied to the User record, which in turn
-    contains the customer_id used by all customer APIs.
-    """
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid customer access ID.",
+        )
 
     user = (
         db.query(User)
         .filter(
-            User.customer_id == request.customer_id,
+            User.customer_id == customer.id,
             User.role == "CUSTOMER",
         )
         .first()
@@ -141,7 +145,7 @@ def customer_login(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid customer ID.",
+            detail="Customer account is not configured.",
         )
 
     if user.status != "ACTIVE":

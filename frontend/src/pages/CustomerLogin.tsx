@@ -17,7 +17,7 @@ import { customerLogin } from "../services/api";
 export default function CustomerLogin() {
   const navigate = useNavigate();
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerAccessId, setCustomerAccessId] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,32 +30,25 @@ export default function CustomerLogin() {
 
     setError("");
 
-    const trimmedCustomerId = customerId.trim();
+    const accessId = customerAccessId
+      .trim()
+      .toUpperCase();
 
-    if (!trimmedCustomerId) {
-      setError("Please enter your Customer ID.");
+    if (!accessId) {
+      setError("Please enter your Customer Access ID.");
       return;
     }
-
-    const parsedCustomerId = Number(trimmedCustomerId);
-
-    if (
-      !Number.isInteger(parsedCustomerId) ||
-      parsedCustomerId <= 0
-    ) {
-      setError("Please enter a valid Customer ID.");
-      return;
-    }
-
 
     try {
       setLoading(true);
 
-      const response = await customerLogin(
-        parsedCustomerId,
-      );
+      const response = await customerLogin(accessId);
 
 
+      /*
+       * Make sure the returned account is actually
+       * a customer account.
+       */
       if (response.user.role !== "CUSTOMER") {
         setError(
           "This account is not a customer account.",
@@ -65,15 +58,26 @@ export default function CustomerLogin() {
       }
 
 
-      if (response.user.customer_id !== parsedCustomerId) {
+      /*
+       * Make sure the authenticated user is linked
+       * to a valid customer profile.
+       */
+      if (
+        !response.user.customer_id ||
+        response.user.customer_id <= 0
+      ) {
         setError(
-          "Customer authentication could not be verified.",
+          "Customer account is not properly configured.",
         );
 
         return;
       }
 
 
+      /*
+       * Store authentication information only after
+       * successful verification.
+       */
       sessionStorage.setItem(
         "razorrecover_access_token",
         response.access_token,
@@ -86,6 +90,9 @@ export default function CustomerLogin() {
       );
 
 
+      /*
+       * Redirect to the customer dashboard.
+       */
       navigate("/customer/dashboard", {
         replace: true,
       });
@@ -140,7 +147,7 @@ export default function CustomerLogin() {
           </h1>
 
           <p>
-            Enter your Customer ID to view your
+            Enter your Customer Access ID to view your
             payments, recovery status, and
             available recovery offers.
           </p>
@@ -154,19 +161,19 @@ export default function CustomerLogin() {
           onSubmit={handleSubmit}
         >
 
-          <label htmlFor="customer-id">
-            Customer ID
+          <label htmlFor="customer-access-id">
+            Customer Access ID
           </label>
 
           <input
-            id="customer-id"
+            id="customer-access-id"
             type="text"
-            inputMode="numeric"
-            placeholder="Enter your Customer ID"
+            inputMode="text"
+            placeholder="CUST-ZN7N8J"
             autoComplete="off"
-            value={customerId}
+            value={customerAccessId}
             onChange={(event) =>
-              setCustomerId(event.target.value)
+              setCustomerAccessId(event.target.value)
             }
             disabled={loading}
           />
