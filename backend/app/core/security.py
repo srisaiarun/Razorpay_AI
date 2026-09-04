@@ -1,8 +1,16 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 import os
 
 import jwt
 from pwdlib import PasswordHash
+
+from backend.app.config.settings import (
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    JWT_ALGORITHM,
+    JWT_SECRET_KEY,
+)
 
 
 # =========================================================
@@ -14,8 +22,7 @@ password_hash = PasswordHash.recommended()
 
 def hash_password(password: str) -> str:
     """
-    Hash a plain-text password using the recommended
-    password hashing algorithm provided by pwdlib.
+    Hash a password using the recommended pwdlib algorithm.
     """
     return password_hash.hash(password)
 
@@ -25,7 +32,7 @@ def verify_password(
     hashed_password: str,
 ) -> bool:
     """
-    Verify a plain-text password against its stored hash.
+    Verify a plaintext password against its stored hash.
     """
     return password_hash.verify(
         plain_password,
@@ -34,29 +41,17 @@ def verify_password(
 
 
 # =========================================================
-# JWT CONFIGURATION
+# JWT CONFIGURATION VALIDATION
 # =========================================================
 
-JWT_SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY",
-    "CHANGE_THIS_SECRET_IN_ENV",
-)
-
-JWT_ALGORITHM = os.getenv(
-    "JWT_ALGORITHM",
-    "HS256",
-)
-
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv(
-        "ACCESS_TOKEN_EXPIRE_MINUTES",
-        "60",
+if not JWT_SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY is not configured."
     )
-)
 
 
 # =========================================================
-# JWT TOKEN CREATION
+# JWT CREATION
 # =========================================================
 
 def create_access_token(
@@ -65,12 +60,14 @@ def create_access_token(
     role: str,
 ) -> str:
     """
-    Create a JWT access token containing the user's
-    identity and authorization role.
+    Create a signed JWT access token.
     """
 
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    expire = (
+        datetime.now(timezone.utc)
+        + timedelta(
+            minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     )
 
     payload = {
@@ -88,15 +85,19 @@ def create_access_token(
 
 
 # =========================================================
-# JWT TOKEN DECODING
+# JWT DECODING
 # =========================================================
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(
+    token: str,
+) -> dict:
     """
     Decode and validate a JWT access token.
 
-    Raises jwt.InvalidTokenError when the token is invalid
-    or expired.
+    jwt.decode automatically validates:
+        - signature
+        - algorithm
+        - expiration
     """
 
     return jwt.decode(
