@@ -21,17 +21,15 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   "http://127.0.0.1:8000";
 
-// =============================================================================
-// Authentication Types
-// =============================================================================
-
 export interface LoginRequest {
   email: string;
   password: string;
 }
+
 export interface CustomerLoginRequest {
   customer_access_id: string;
 }
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -46,6 +44,7 @@ export interface AuthResponse {
   token_type: string;
   user: AuthUser;
 }
+
 export async function customerLogin(
   customerAccessId: string,
 ): Promise<AuthResponse> {
@@ -54,15 +53,12 @@ export async function customerLogin(
     {
       method: "POST",
       body: JSON.stringify({
-        customer_access_id: customerAccessId.trim().toUpperCase(),
+        customer_access_id:
+          customerAccessId.trim().toUpperCase(),
       }),
     },
   );
 }
-
-// =============================================================================
-// Generic API Request
-// =============================================================================
 
 async function request<T>(
   path: string,
@@ -76,23 +72,21 @@ async function request<T>(
     `${API_BASE_URL}${path}`,
     {
       ...options,
-
       headers: {
         "Content-Type": "application/json",
-
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
             }
           : {}),
-
         ...(options?.headers ?? {}),
       },
     },
   );
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}`;
+    let message =
+      `Request failed with status ${response.status}`;
 
     try {
       const errorData = await response.json();
@@ -112,24 +106,20 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-// =============================================================================
 // Authentication
-// =============================================================================
 
 export async function login(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
-  const payload: LoginRequest = {
-    email,
-    password,
-  };
-
   return request<AuthResponse>(
     "/api/v1/auth/login",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        email,
+        password,
+      }),
     },
   );
 }
@@ -144,15 +134,12 @@ export function logout(): void {
   sessionStorage.removeItem(
     "razorrecover_access_token",
   );
-
   sessionStorage.removeItem(
     "razorrecover_user",
   );
 }
 
-// =============================================================================
 // Customer Portal
-// =============================================================================
 
 export async function getCustomerProfile(): Promise<CustomerProfile> {
   return request<CustomerProfile>(
@@ -182,9 +169,7 @@ export async function getCustomerRecoveryCases(): Promise<
   );
 }
 
-// =============================================================================
 // Recovery Cases
-// =============================================================================
 
 export async function getRecoveryQueue(
   limit = 50,
@@ -226,10 +211,6 @@ export async function getRecoveryAudit(
   );
 }
 
-// =============================================================================
-// Recovery Decision
-// =============================================================================
-
 export async function createRecoveryDecision(
   recoveryCaseId: number,
 ): Promise<RecoveryDecisionResponse> {
@@ -241,9 +222,7 @@ export async function createRecoveryDecision(
   );
 }
 
-// =============================================================================
 // Recovery Actions
-// =============================================================================
 
 export async function approveRecoveryAction(
   actionId: number,
@@ -269,9 +248,7 @@ export async function executeRecoveryAction(
   );
 }
 
-// =============================================================================
 // Admin — Decisions
-// =============================================================================
 
 export async function getAllDecisions(): Promise<
   AdminDecision[]
@@ -281,9 +258,7 @@ export async function getAllDecisions(): Promise<
   );
 }
 
-// =============================================================================
 // Admin — Customers
-// =============================================================================
 
 export async function getAllCustomers(): Promise<
   AdminCustomer[]
@@ -293,9 +268,7 @@ export async function getAllCustomers(): Promise<
   );
 }
 
-// =============================================================================
 // Admin — Recovery Actions
-// =============================================================================
 
 export async function getAllRecoveryActions(): Promise<
   RecoveryAction[]
@@ -305,9 +278,7 @@ export async function getAllRecoveryActions(): Promise<
   );
 }
 
-// =============================================================================
 // Health
-// =============================================================================
 
 export async function getHealth(): Promise<{
   status: string;
@@ -321,11 +292,6 @@ export async function getHealth(): Promise<{
   }>("/health");
 }
 
-// =============================================================================
-// Agent Decision Type
-// =============================================================================
-
-// Prevent unused-import errors if the API contract expands later.
 export type {
   AgentDecision,
 };

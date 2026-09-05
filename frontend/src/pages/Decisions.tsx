@@ -12,13 +12,15 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+import ManagementSidebar from "../components/ManagementSidebar";
+
 import { getAllDecisions } from "../services/api";
 import type { AdminDecision } from "../types/recovery";
 
 function money(value: number) {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "GBP",
+    currency: "INR",
     minimumFractionDigits: 2,
   }).format(value);
 }
@@ -175,24 +177,31 @@ export default function Decisions() {
 
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="loading-state">
+      <div className="management-shell">
+        <ManagementSidebar active="decisions" />
+        <main className="management-main">
+          <div className="page-container">
+            <div className="loading-state">
           <Loader2 className="spin" size={22} />
-          <span>Loading AI decisions...</span>
-        </div>
+              <span>Loading AI decisions...</span>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="page-container">
+    <div className="management-shell">
+      <ManagementSidebar active="decisions" />
+      <main className="management-main">
+        <div className="page-container">
         {/* Header */}
 
         <div className="page-header">
           <div>
             <Link
-              to="/"
+              to="/management"
               className="back-link"
             >
               <ArrowLeft size={16} />
@@ -459,7 +468,7 @@ export default function Decisions() {
                         className="clickable-row"
                         onClick={() =>
                           navigate(
-                            `/recovery-cases/${item.recovery_case_id}`,
+                            `/management/recovery-cases/${item.recovery_case_id}`,
                           )
                         }
                       >
@@ -594,7 +603,8 @@ export default function Decisions() {
             </p>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

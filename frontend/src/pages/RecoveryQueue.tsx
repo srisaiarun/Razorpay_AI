@@ -114,7 +114,7 @@ function Sidebar() {
         </div>
 
         <Link
-          to="/"
+          to="/management"
           className="nav-item"
         >
           <LayoutDashboard size={18} />
@@ -122,7 +122,7 @@ function Sidebar() {
         </Link>
 
         <Link
-          to="/recovery-queue"
+          to="/management/recovery-queue"
           className="nav-item nav-item-active"
         >
           <Target size={18} />
@@ -130,7 +130,7 @@ function Sidebar() {
         </Link>
 
         <Link
-          to="/decisions"
+          to="/management/decisions"
           className="nav-item"
         >
           <Activity size={18} />
@@ -143,7 +143,7 @@ function Sidebar() {
         </div>
 
         <Link
-          to="/customers"
+          to="/management/customers"
           className="nav-item"
         >
           <Users size={18} />
@@ -151,7 +151,7 @@ function Sidebar() {
         </Link>
 
         <Link
-          to="/recovery-actions"
+          to="/management/recovery-actions"
           className="nav-item"
         >
           <CheckCircle2 size={18} />
@@ -315,7 +315,7 @@ export default function RecoveryQueue() {
     recoveryCaseId: number,
   ) {
     navigate(
-      `/recovery-cases/${recoveryCaseId}`,
+      `/management/recovery-cases/${recoveryCaseId}`,
     );
   }
 
@@ -363,7 +363,7 @@ export default function RecoveryQueue() {
 
 
         <div className="queue-back">
-          <Link to="/">
+          <Link to="/management">
             <ArrowLeft size={15} />
             Back to dashboard
           </Link>
@@ -669,7 +669,7 @@ export default function RecoveryQueue() {
                         <td>
 
                           <Link
-                            to={`/recovery-cases/${item.recovery_case_id}`}
+                            to={`/management/recovery-cases/${item.recovery_case_id}`}
                             className="case-link"
                             onClick={(event) =>
                               event.stopPropagation()

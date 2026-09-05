@@ -1,4 +1,3 @@
-
 export type RecoveryStatus =
   | "OPEN"
   | "RECOVERED"
@@ -29,7 +28,6 @@ export type RecoveryActionStatus =
   | "FAILED"
   | "SKIPPED";
 
-
 export interface RecoveryCase {
   id: number;
   transaction_id: number;
@@ -44,7 +42,6 @@ export interface RecoveryCase {
   created_at: string;
   resolved_at: string | null;
 }
-
 
 export interface RecoveryQueueItem {
   recovery_case_id: number;
@@ -62,13 +59,11 @@ export interface RecoveryQueueItem {
   next_action_at: string | null;
 }
 
-
 export interface RecoveryQueueResponse {
   total: number;
   limit: number;
   items: RecoveryQueueItem[];
 }
-
 
 export interface AgentDecision {
   id: number;
@@ -99,7 +94,6 @@ export interface AdminDecision {
   created_at: string;
 }
 
-
 export interface RecoveryAction {
   id: number;
   recovery_case_id: number;
@@ -114,7 +108,6 @@ export interface RecoveryAction {
   completed_at: string | null;
 }
 
-
 export interface AuditLog {
   id: number;
   recovery_case_id: number;
@@ -125,7 +118,6 @@ export interface AuditLog {
   event_data: Record<string, unknown>;
   created_at: string;
 }
-
 
 export interface RecoveryDecisionResponse {
   recovery_case_id: number;
@@ -143,11 +135,10 @@ export interface RecoveryDecisionResponse {
   created_at: string;
 }
 
-
 export interface ApprovalRequest {
-  approver_id: string;
   approval_reason?: string | null;
-} 
+}
+
 export interface AdminCustomer {
   id: number;
   external_customer_id: string;
@@ -157,13 +148,11 @@ export interface AdminCustomer {
   successful_payments: number;
   failed_payments: number;
   opted_out: boolean;
-
   total_cases: number;
   open_cases: number;
   recovered_cases: number;
   total_amount_at_risk: number;
   expected_recovery_value: number;
-
   latest_case_status: string | null;
   latest_case_id: number | null;
 }

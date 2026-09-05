@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+import ManagementSidebar from "../components/ManagementSidebar";
+
 import {
   approveRecoveryAction,
   executeRecoveryAction,
@@ -21,9 +23,9 @@ import {
 import type { RecoveryAction } from "../types/recovery";
 
 function money(value: number) {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "GBP",
+    currency: "INR",
     minimumFractionDigits: 2,
   }).format(value);
 }
@@ -145,7 +147,6 @@ export default function RecoveryActions() {
       await approveRecoveryAction(
         actionId,
         {
-          approver_id: "admin_demo",
           approval_reason:
             approvalReason.trim() ||
             "Approved for recovery execution.",
@@ -241,30 +242,37 @@ export default function RecoveryActions() {
 
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="loading-state">
+      <div className="management-shell">
+        <ManagementSidebar active="actions" />
+        <main className="management-main">
+          <div className="page-container">
+            <div className="loading-state">
           <Loader2
             size={22}
             className="spin"
           />
 
-          <span>
-            Loading recovery actions...
-          </span>
-        </div>
+              <span>
+                Loading recovery actions...
+              </span>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="page-container">
+    <div className="management-shell">
+      <ManagementSidebar active="actions" />
+      <main className="management-main">
+        <div className="page-container">
         {/* Header */}
 
         <div className="page-header">
           <div>
             <Link
-              to="/"
+              to="/management"
               className="back-link"
             >
               <ArrowLeft size={16} />
@@ -536,7 +544,7 @@ export default function RecoveryActions() {
                           className="clickable-row"
                           onClick={() =>
                             navigate(
-                              `/recovery-cases/${action.recovery_case_id}`,
+                              `/management/recovery-cases/${action.recovery_case_id}`,
                             )
                           }
                         >
@@ -722,7 +730,8 @@ export default function RecoveryActions() {
             </p>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useParams,
 } from "react-router-dom";
 
 import LandingPage from "./pages/LandingPage";
@@ -17,89 +18,64 @@ import Decisions from "./pages/Decisions";
 import Customers from "./pages/Customers";
 import RecoveryActions from "./pages/RecoveryActions";
 
+function LegacyRecoveryCaseRedirect() {
+  const { recoveryCaseId } = useParams();
+  return (
+    <Navigate
+      to={`/management/recovery-cases/${recoveryCaseId ?? ""}`}
+      replace
+    />
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ============================================================ */}
-        {/* PUBLIC                                                       */}
-        {/* ============================================================ */}
+        {/* PUBLIC */}
+        <Route path="/" element={<LandingPage />} />
 
-        <Route
-          path="/"
-          element={<LandingPage />}
-        />
-
-        {/* ============================================================ */}
-        {/* CUSTOMER AUTH                                                */}
-        {/* ============================================================ */}
-
-        <Route
-          path="/customer/login"
-          element={<CustomerLogin />}
-        />
-
-        {/* ============================================================ */}
-        {/* CUSTOMER PORTAL                                              */}
-        {/* ============================================================ */}
-
+        {/* CUSTOMER */}
+        <Route path="/customer/login" element={<CustomerLogin />} />
         <Route
           path="/customer/dashboard"
           element={<CustomerDashboard />}
         />
 
-        {/* ============================================================ */}
-        {/* MANAGEMENT AUTH                                               */}
-        {/* ============================================================ */}
-
+        {/* MANAGEMENT AUTH */}
         <Route
           path="/management/login"
           element={<ManagementLogin />}
         />
-
         <Route
           path="/management/request-access"
           element={<ManagementRequestAccess />}
         />
 
-        {/* ============================================================ */}
-        {/* MANAGEMENT / ADMIN                                            */}
-        {/* ============================================================ */}
-
-        <Route
-          path="/management"
-          element={<Dashboard />}
-        />
-
+        {/* MANAGEMENT */}
+        <Route path="/management" element={<Dashboard />} />
         <Route
           path="/management/recovery-queue"
           element={<RecoveryQueue />}
         />
-
         <Route
           path="/management/decisions"
           element={<Decisions />}
         />
-
         <Route
           path="/management/customers"
           element={<Customers />}
         />
-
         <Route
           path="/management/recovery-actions"
           element={<RecoveryActions />}
         />
-
         <Route
           path="/management/recovery-cases/:recoveryCaseId"
           element={<RecoveryCaseDetails />}
         />
 
-        {/* ============================================================ */}
-        {/* BACKWARD-COMPATIBILITY ROUTES                                 */}
-        {/* ============================================================ */}
-
+        {/* BACKWARD COMPATIBILITY */}
         <Route
           path="/recovery-queue"
           element={
@@ -109,7 +85,6 @@ function App() {
             />
           }
         />
-
         <Route
           path="/decisions"
           element={
@@ -119,7 +94,6 @@ function App() {
             />
           }
         />
-
         <Route
           path="/customers"
           element={
@@ -129,7 +103,6 @@ function App() {
             />
           }
         />
-
         <Route
           path="/recovery-actions"
           element={
@@ -139,30 +112,13 @@ function App() {
             />
           }
         />
-
         <Route
           path="/recovery-cases/:recoveryCaseId"
-          element={
-            <Navigate
-              to="/management/recovery-cases/:recoveryCaseId"
-              replace
-            />
-          }
+          element={<LegacyRecoveryCaseRedirect />}
         />
 
-        {/* ============================================================ */}
-        {/* FALLBACK                                                      */}
-        {/* ============================================================ */}
-
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to="/"
-              replace
-            />
-          }
-        />
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

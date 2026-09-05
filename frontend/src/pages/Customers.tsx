@@ -13,13 +13,15 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+import ManagementSidebar from "../components/ManagementSidebar";
+
 import { getAllCustomers } from "../services/api";
 import type { AdminCustomer } from "../types/recovery";
 
 function money(value: number) {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "GBP",
+    currency: "INR",
     minimumFractionDigits: 2,
   }).format(value);
 }
@@ -144,28 +146,35 @@ export default function Customers() {
 
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="loading-state">
+      <div className="management-shell">
+        <ManagementSidebar active="customers" />
+        <main className="management-main">
+          <div className="page-container">
+            <div className="loading-state">
           <Loader2
             size={22}
             className="spin"
           />
 
-          <span>
-            Loading customer recovery data...
-          </span>
-        </div>
+              <span>
+                Loading customer recovery data...
+              </span>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="page-container">
+    <div className="management-shell">
+      <ManagementSidebar active="customers" />
+      <main className="management-main">
+        <div className="page-container">
         <div className="page-header">
           <div>
             <Link
-              to="/"
+              to="/management"
               className="back-link"
             >
               <ArrowLeft size={16} />
@@ -373,7 +382,7 @@ export default function Customers() {
                             customer.latest_case_id
                           ) {
                             navigate(
-                              `/recovery-cases/${customer.latest_case_id}`,
+                              `/management/recovery-cases/${customer.latest_case_id}`,
                             );
                           }
                         }}
@@ -493,7 +502,8 @@ export default function Customers() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from backend.app.api.auth import require_management_user
 from backend.app.db.session import SessionLocal
 from backend.app.models.agent_decision import AgentDecision
+from backend.app.models.customer import Customer
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.recovery_action import RecoveryAction
 from backend.app.models.recovery_case import RecoveryCase
@@ -57,6 +58,25 @@ def get_db():
 # RESPONSE SCHEMAS
 # =========================================================
 
+
+class AdminCustomerResponse(BaseModel):
+    id: int
+    external_customer_id: str
+    name: str
+    email: str
+    lifetime_value: float
+    successful_payments: int
+    failed_payments: int
+    opted_out: bool
+    total_cases: int
+    open_cases: int
+    recovered_cases: int
+    total_amount_at_risk: float
+    expected_recovery_value: float
+    latest_case_status: str | None
+    latest_case_id: int | None
+
+
 class RecoveryCaseResponse(BaseModel):
     id: int
     transaction_id: int
@@ -85,6 +105,25 @@ class RecoveryDecisionResponse(BaseModel):
     action_type: str
     action_status: str
     amount: float
+    created_at: datetime
+
+
+
+
+class AdminDecisionResponse(BaseModel):
+    id: int
+    recovery_case_id: int
+    customer_id: int
+    decision: str
+    reasoning_summary: str
+    confidence: float
+    expected_recovery_amount: float
+    policy_status: str
+    requires_human_approval: bool
+    action_id: int | None
+    action_type: str | None
+    action_status: str | None
+    case_status: str
     created_at: datetime
 
 
@@ -263,6 +302,181 @@ def get_recovery_queue(
         items=queue_items[:limit],
     )
 
+
+
+
+# =========================================================
+# ADMIN — ALL CUSTOMERS
+# =========================================================
+
+@router.get(
+    "/customers",
+    response_model=list[AdminCustomerResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_all_customers(
+    db: Session = Depends(get_db),
+):
+    """Return customer-level recovery information for the admin UI."""
+
+    customers = (
+        db.query(Customer)
+        .order_by(Customer.id.asc())
+        .all()
+    )
+
+    results: list[AdminCustomerResponse] = []
+
+    for customer in customers:
+        cases = list(customer.recovery_cases)
+
+        total_cases = len(cases)
+
+        open_cases = sum(
+            1
+            for case in cases
+            if case.status == "OPEN"
+        )
+
+        recovered_cases = sum(
+            1
+            for case in cases
+            if case.status == "RECOVERED"
+        )
+
+        total_amount_at_risk = sum(
+            float(case.amount_at_risk)
+            for case in cases
+        )
+
+        expected_recovery_value = sum(
+            float(case.amount_at_risk)
+            * float(case.recovery_probability)
+            for case in cases
+            if case.recovery_probability is not None
+        )
+
+        latest_case = (
+            max(
+                cases,
+                key=lambda case: case.created_at,
+            )
+            if cases
+            else None
+        )
+
+        results.append(
+            AdminCustomerResponse(
+                id=customer.id,
+                external_customer_id=customer.external_customer_id,
+                name=customer.name,
+                email=customer.email,
+                lifetime_value=float(customer.lifetime_value),
+                successful_payments=customer.successful_payments,
+                failed_payments=customer.failed_payments,
+                opted_out=customer.opted_out,
+                total_cases=total_cases,
+                open_cases=open_cases,
+                recovered_cases=recovered_cases,
+                total_amount_at_risk=total_amount_at_risk,
+                expected_recovery_value=round(
+                    expected_recovery_value,
+                    2,
+                ),
+                latest_case_status=(
+                    latest_case.status
+                    if latest_case
+                    else None
+                ),
+                latest_case_id=(
+                    latest_case.id
+                    if latest_case
+                    else None
+                ),
+            )
+        )
+
+    return results
+
+
+# =========================================================
+# ADMIN — ALL DECISIONS
+# =========================================================
+
+@router.get(
+    "/decisions",
+    response_model=list[AdminDecisionResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_all_decisions(
+    db: Session = Depends(get_db),
+):
+    """
+    Return all persisted AI recovery decisions for the admin UI.
+
+    Decisions are joined with their recovery cases and associated
+    recovery actions so the admin can see the complete decision state.
+    """
+
+    rows = (
+        db.query(
+            AgentDecision,
+            RecoveryCase,
+            RecoveryAction,
+        )
+        .join(
+            RecoveryCase,
+            RecoveryCase.id == AgentDecision.recovery_case_id,
+        )
+        .outerjoin(
+            RecoveryAction,
+            RecoveryAction.agent_decision_id == AgentDecision.id,
+        )
+        .order_by(
+            AgentDecision.id.desc()
+        )
+        .all()
+    )
+
+    return [
+        AdminDecisionResponse(
+            id=agent_decision.id,
+            recovery_case_id=agent_decision.recovery_case_id,
+            customer_id=recovery_case.customer_id,
+            decision=agent_decision.decision,
+            reasoning_summary=agent_decision.reasoning_summary,
+            confidence=float(agent_decision.confidence),
+            expected_recovery_amount=float(
+                agent_decision.expected_recovery_amount
+            ),
+            policy_status=agent_decision.policy_status,
+            requires_human_approval=(
+                agent_decision.requires_human_approval
+            ),
+            action_id=(
+                recovery_action.id
+                if recovery_action is not None
+                else None
+            ),
+            action_type=(
+                recovery_action.action_type
+                if recovery_action is not None
+                else None
+            ),
+            action_status=(
+                recovery_action.status
+                if recovery_action is not None
+                else None
+            ),
+            case_status=recovery_case.status,
+            created_at=agent_decision.created_at,
+        )
+        for (
+            agent_decision,
+            recovery_case,
+            recovery_action,
+        ) in rows
+    ]
 
 # =========================================================
 # CREATE DECISION
